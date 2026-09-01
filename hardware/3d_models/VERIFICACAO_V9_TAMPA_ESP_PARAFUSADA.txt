@@ -1,0 +1,39 @@
+V9 - TAMPA DO ESP32 COM 2 PARAFUSOS
+
+Objetivo:
+Substituir a tampa original de encaixe do compartimento ESP32 por uma tampa removivel
+no mesmo conceito da tampa da bateria 18650, usando dois parafusos.
+
+Alteracoes realizadas:
+- Mantida toda a geometria funcional da V8:
+  * caixa 18650 fechada;
+  * tampa 18650 com 2 parafusos;
+  * furos do holder 18650;
+  * passa-cabo alinhado entre bateria e ESP32;
+  * dois suportes para presilhas do tubo de ~20 mm.
+- Adicionados 2 postes externos para a tampa do ESP32.
+- Postes posicionados no lado do ESP32 oposto a bateria, evitando os conectores das faces frontal/traseira.
+- Nova tampa ESP32 plana, com borda interna rasa de posicionamento e 2 orelhas de parafuso.
+
+Parafusos sugeridos para a tampa ESP32:
+- 2x M2.5 x 8 mm para plastico / autoatarraxante.
+- Furo piloto do poste: 2.25 mm.
+- Furo passante da tampa: 2.9 mm.
+- Rebaixo de cabeca: 5.4 mm.
+
+Posicao dos parafusos ESP32:
+- X = 125.55 mm
+- Y = 116.00 mm e 140.00 mm
+- Separacao entre centros = 24.00 mm
+
+Verificacao de encaixe:
+- Foi feita intersecao CAD entre corpo e nova tampa na posicao fechada.
+- A intersecao volumetrica foi 0 mm3; existe apenas contato no plano de apoio Z=21.45 mm.
+- Portanto a borda interna da nova tampa nao invade as paredes do corpo.
+
+Arquivos:
+- ESP32C3_18650_Body_V9_ESP_ScrewLid.stl
+- ESP32C3_Lid_V9_2Screws.stl
+- ESP32C3_18650_Battery_Lid_V9.stl
+- TUBE_REFERENCE_20mm_V9.stl
+- esp32c3_18650_v9_esp_screw_lid.scad

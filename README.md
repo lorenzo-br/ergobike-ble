@@ -1,33 +1,65 @@
 # 🚴 ErgoBike BLE - Adaptador Bluetooth Smart para Bike Ergométrica
 
-Transforme sua bicicleta ergométrica convencional com medidor simples P1/P2 em um **Smart Indoor Trainer Bluetooth** completo, compatível diretamente com o **CycleGo**, Zwift, Rouvy, Kinomap, Strava e outros aplicativos de treino indoor.
+<p align="center">
+  <img src="hardware/3d_models/ESP32C3_18650_V9_preview.png" alt="ErgoBike BLE 3D Enclosure" width="550">
+</p>
 
-Desenvolvido para **ESP32-C3** com alimentação por bateria de lítio **18650**, suporte a **Deep Sleep** (< 15 µA) com acionamento automático na primeira pedalada e **Portal Wi-Fi de Auto-Calibração** sem fios.
+<p align="center">
+  <img src="https://img.shields.io/badge/Microcontroller-ESP32--C3-red?style=for-the-badge&logo=espressif" alt="ESP32-C3">
+  <img src="https://img.shields.io/badge/Bluetooth-BLE%205.0%20(CSCS%20%2B%20FTMS)-blue?style=for-the-badge&logo=bluetooth" alt="BLE">
+  <img src="https://img.shields.io/badge/Battery-18650%20Li--ion%20(Deep%20Sleep)-green?style=for-the-badge&logo=battery" alt="18650">
+  <img src="https://img.shields.io/badge/PlatformIO-Compatible-orange?style=for-the-badge&logo=platformio" alt="PlatformIO">
+  <img src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge" alt="License">
+</p>
+
+---
+
+Transforme sua bicicleta ergométrica convencional com medidor de pulso simples (cabo P1/P2) em um **Smart Indoor Trainer Bluetooth** completo e de alta precisão, compatível nativamente com o **CycleGo**, **Zwift**, **Rouvy**, **Kinomap**, **Strava**, **Wahoo** e outros aplicativos de treino indoor.
+
+Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, com consumo ultra-baixo em repouso (**Deep Sleep < 15 µA**), despertar automático ao primeiro giro do pedal e um **Portal Wi-Fi de Auto-Calibração** sem necessidade de abrir a carenagem da bike.
 
 ---
 
 ## 🌟 Principais Recursos
 
-- **Dual-Stack BLE (CSCS + FTMS + Battery Service):**
-  - **CSCS (Cycling Speed and Cadence Service - 0x1816):** Padrão universal para cadência e velocidade.
-  - **FTMS (Fitness Machine Service - 0x1826):** Dados nativos de bicicleta indoor (*Indoor Bike Data*).
-  - **Battery Service (0x180F):** Monitoramento real da bateria 18650 transmitido para o aplicativo.
-- **Assistente de Auto-Calibração (10 Voltas):** Calibre a relação exata da roda de inércia da sua bike diretamente pelo navegador do celular, sem precisar abrir a carenagem nem contar dentes de polia.
-- **Ultra-Baixo Consumo (Deep Sleep):**
+- **Dual-Stack BLE Oficial (CSCS + FTMS + BAS):**
+  - **CSCS (Cycling Speed and Cadence Service - `0x1816`):** Padrão universal para cadência e velocidade com base de tempo de 1/1024s.
+  - **FTMS (Fitness Machine Service - `0x1826`):** Padrão moderno com dados de *Indoor Bike Data*.
+  - **Battery Service (`0x180F`):** Monitoramento contínuo da porcentagem da célula 18650 diretamente no app.
+- **Assistente de Auto-Calibração (10 Voltas no Pedal):**
+  - Calibração guiada via navegador: dê 10 voltas no pedal e o sistema calcula a relação de polia da roda de inércia automaticamente.
+- **Gestão Inteligente de Energia (Deep Sleep):**
   - Desliga automaticamente após 3 minutos de inatividade.
-  - Acorda instantaneamente ao detectar o primeiro giro no pedal/volante de inércia.
-- **Portal Web e Atualização OTA:** Altere parâmetros, visualize velocímetro/RPM em tempo real e faça atualizações de firmware sem plugar cabos USB.
-- **Case 3D V9 Integrado:** Enclosure com compartimento para ESP32-C3, suporte de bateria 18650 com tampa parafusada e montagem em tubo de 20 mm.
+  - Desperta instantaneamente no primeiro pulso do ímã (GPIO 3 interrupt wake).
+- **Portal Web Wi-Fi Responsivo + Atualização OTA:**
+  - Dashboard ao vivo com velocímetro, cadência e nível de bateria.
+  - Atualização de firmware sem fios (Over-The-Air) pelo celular ou notebook.
+- **Enclosure 3D V9 Sob Medida:**
+  - Compartimento dedicado para ESP32-C3 + suporte para bateria 18650 com tampas parafusadas e abraçadeira para tubo de 20 mm.
 
 ---
 
-## 🛠️ Esquema Elétrico e Conexões (ESP32-C3)
+## 📱 Compatibilidade de Aplicativos
+
+| Aplicativo | Protocolo BLE Utilizado | Métricas Suportadas |
+| :--- | :--- | :--- |
+| **CycleGo** | CSCS / FTMS | Cadência (RPM) e Velocidade (km/h) |
+| **Zwift** | CSCS / FTMS | Cadência, Velocidade e Bateria |
+| **Rouvy** | CSCS | Cadência e Velocidade Virtual |
+| **Kinomap** | FTMS / CSCS | Cadência e Velocidade |
+| **Strava** (Gravação) | CSCS | Cadência e Velocidade do Treino |
+| **Wahoo Fitness** | CSCS | Cadência, Velocidade e Bateria |
+| **nRF Connect** | CSCS + FTMS + BAS + DIS | Diagnóstico completo de GATT |
+
+---
+
+## 🛠️ Esquema Elétrico e Conexões
 
 ```
                        ESP32-C3
                    +---------------+
 [ JACK P2 DA BIKE ]|               |
-Ponta (Sinal) -----[ 1kΩ ]---------| GPIO 3 (PULL-UP INTERNO)
+Ponta (Sinal) -----[ 1kΩ ]---------| GPIO 3 (INPUT_PULLUP + WAKEUP)
                    |               |
 Malha (GND)   -----+---------------| GND
                    |               |
@@ -39,87 +71,113 @@ Polo (+) ----------[ 100kΩ ]---+---| GPIO 0 (ADC1_CH0)
 Polo (-) ----------------------+---| GND
                                    |
 [ BOTÃO SETUP ]--------------------| GPIO 9 (Nativo BOOT)
-[ LED STATUS ]---------------------| GPIO 8
+[ LED STATUS ]---------------------| GPIO 8 (Ativo em nível LOW)
                    +---------------+
 ```
 
-### Componentes Necessários:
-1. Placa **ESP32-C3** (ex: C3 SuperMini ou C3 DevKit).
-2. Célula **18650 3.7V** + Holder 18650.
-3. Conector fêmea ou cabo macho **Jack P2 / P1** mono.
-4. Resistor de **1kΩ** (em série no sinal do sensor para proteção ESD).
-5. 2x Resistores de **100kΩ** (divisor de tensão para o ADC de bateria).
+### Lista de Componentes Eletrônicos:
+1. **Placa ESP32-C3** (ex: C3 SuperMini, C3 DevKitM-1 ou similar).
+2. **Célula 18650 3.7V** + Suporte/Holder 18650 com terminais.
+3. **Conector Jack P2 (3.5 mm) ou P1 (2.5 mm)** mono/estéreo.
+4. **1x Resistor 1kΩ** (ligado em série no pino de sinal para proteção contra ESD da esteira/correia).
+5. **2x Resistores 100kΩ** (divisor de tensão 1:2 para leitura segura no ADC de até 4.2V).
 
 ---
 
-## 🚀 Como Compilar e Gravar o Firmware
+## 🖨️ Enclosure 3D (V9)
 
-### Opção 1: Usando PlatformIO (Recomendado)
-1. Instale a extensão **PlatformIO IDE** no VS Code.
-2. Abra a pasta `ergobike_ble` no VS Code.
-3. Conecte o ESP32-C3 via USB.
-4. Clique no ícone de **Upload** na barra inferior do PlatformIO (ou execute `pio run -t upload`).
+Os modelos 3D paramétricos estão disponíveis na pasta [`hardware/3d_models/`](hardware/3d_models/):
 
-### Opção 2: Usando Arduino IDE
-1. Adicione o suporte ao ESP32 no Gerenciador de Placas (`https://espressif.github.io/arduino-esp32/package_esp32_index.json`).
-2. Selecione a placa **ESP32C3 Dev Module**.
-3. Instale as seguintes bibliotecas pelo Gerenciador de Bibliotecas:
+<p align="center">
+  <img src="hardware/3d_models/ESP32C3_18650_V9_ESP_Lid_exploded.png" alt="Vista Explodida do Enclosure" width="550">
+</p>
+
+* **Corpo Principal:** `ESP32C3_18650_Body_V9_ESP_ScrewLid.stl`
+* **Tampa da Bateria:** `ESP32C3_18650_Battery_Lid_V9.stl`
+* **Tampa do ESP32:** `ESP32C3_Lid_V9_2Screws.stl`
+* **Parafusos recomendados:** 4x parafusos autoatarraxantes M2.5 x 8 mm para plástico.
+* **Fixação na Bike:** Encaixe para tubo de 20 mm com ranhuras para abraçadeiras de nylon (*enforca-gato*).
+
+---
+
+## 🚀 Compilação e Gravação
+
+### Usando PlatformIO (VS Code)
+1. Clone este repositório:
+   ```bash
+   git clone https://github.com/lorenzo-br/ergobike-ble.git
+   cd ergobike-ble
+   ```
+2. Abra a pasta no **VS Code** com a extensão **PlatformIO**.
+3. Conecte o ESP32-C3 na porta USB.
+4. Clique no botão de **Upload** na barra inferior do PlatformIO (ou execute `pio run -t upload`).
+
+### Usando Arduino IDE
+1. Adicione a URL do ESP32 em *Arquivo > Preferências*:
+   `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+2. Instale as bibliotecas via Gerenciador de Bibliotecas:
    - `NimBLE-Arduino`
    - `ArduinoJson`
    - `ESPAsyncWebServer` e `AsyncTCP`
-4. Abra o arquivo `src/main.cpp` e faça o upload.
+3. Selecione a placa **ESP32C3 Dev Module** e realize o upload.
 
 ---
 
-## 📱 Como Calibrar e Usar
+## 📱 Guia de Uso e Calibração
 
-### 1. Primeiro Uso e Calibração Wireless (Modo Wi-Fi)
-1. Ao ligar o ESP32, **segure o botão BOOT (GPIO 9) por 3 segundos**.
-2. O LED começará a piscar rápido, indicando o **Modo de Configuração**.
-3. No seu smartphone ou notebook, conecte-se à rede Wi-Fi:
-   - **SSID:** `ErgoBike-Setup`
+### 1. Calibração Inicial sem Fio (Modo Wi-Fi)
+1. Ligue o dispositivo segurando o **botão BOOT (GPIO 9)** por 2 a 3 segundos.
+2. O LED de status começará a **piscar rapidamente**.
+3. No smartphone ou computador, conecte na rede Wi-Fi:
+   - **Nome da Rede (SSID):** `ErgoBike-Setup`
    - **Senha:** `12345678`
-4. Abra o navegador e acesse: `http://192.168.4.1`
-5. **Assistente de 10 Voltas:**
-   - Na seção *Assistente de Auto-Calibração*, clique em **"1. Iniciar Contagem"**.
-   - Dê exatamente **10 voltas completas** no pedal da sua bike.
-   - Clique em **"2. Concluir Calibração"**. O ESP32 calculará a relação de polia automaticamente e salvará na memória Flash!
+4. Abra o navegador em `http://192.168.4.1`.
+5. Na seção **Assistente de Auto-Calibração**:
+   - Clique em **"1. Iniciar Contagem"**.
+   - Dê exatamente **10 voltas completas** no pedal da bike.
+   - Clique em **"2. Concluir Calibração"**.
+   - O sistema salvará a relação calculada diretamente na memória Flash (NVS)!
 6. Clique em **"Reiniciar em Modo BLE"**.
 
 ---
 
-### 2. Conectando no **CycleGo**
-1. Abra o app **CycleGo** no seu celular ou tablet.
-2. Vá em **Configurações / Conectar Sensores**.
-3. Selecione **Sensor de Cadência / Velocidade**.
-4. Escolha o dispositivo **`ErgoBike-BLE`**.
-5. Inicie seu treino! Ao pedalar, o app responderá instantaneamente aos seus giros de pedal e velocidade.
+### 2. Conexão no **CycleGo**
+1. Abra o aplicativo **CycleGo** (iOS / Android).
+2. Acesse a tela de conexão de sensores.
+3. Conecte o sensor chamado **`ErgoBike-BLE`**.
+4. Pronto! Ao pedalar, suas métricas de cadência e velocidade virtual responderão instantaneamente.
 
 ---
 
-## 🔋 Funcionamento do Deep Sleep (Autonomia)
+## 🧪 Testes Unitários de Algoritmo
 
-- **Modo Treino:** Enquanto você estiver pedalando ou com o app conectado, o sistema permanece 100% ativo.
-- **Modo Sono (Deep Sleep):** Após 3 minutos sem pedaladas e sem conexão Bluetooth ativa, o ESP32 desliga os rádios e entra em Deep Sleep (consumo < 15 µA).
-- **Despertar Automático:** Basta dar uma volta no pedal! O ímã do volante aciona o pino GPIO 3 e acorda o microcontrolador instantaneamente.
+O projeto inclui suíte de testes de mesa em C++17 para validação das fórmulas matemáticas, filtros de debounce e curva da bateria:
+
+```bash
+# Executar testes unitários nativos (MSVC / GCC / Clang)
+cl /EHsc /std:c++17 /DNATIVE_TEST /Iinclude src\sensor_reader.cpp test\test_sensor_math.cpp /Fe:test_sensor.exe && test_sensor.exe
+cl /EHsc /std:c++17 /DNATIVE_TEST /Iinclude src\battery_monitor.cpp test\test_battery_math.cpp /Fe:test_battery.exe && test_battery.exe
+```
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura de Arquivos
 
 ```
 ergobike_ble/
+├── hardware/
+│   └── 3d_models/           # Arquivos STL, OpenSCAD e imagens do Case V9
 ├── include/
-│   ├── config.h             # Pinos, UUIDs e constantes
-│   ├── sensor_reader.h      # Leitura de interrupção e conversão de métricas
-│   ├── ble_manager.h        # Servidor BLE CSCS + FTMS + Bateria
-│   ├── storage_manager.h    # Persistência NVS (Flash)
-│   ├── battery_monitor.h    # Monitoramento e curva da 18650
-│   ├── power_manager.h      # Gestão de Deep Sleep e Wakeup
-│   ├── web_assets.h         # Painel Web HTML5/CSS/JS embarcado
-│   └── web_portal.h         # Ponto de acesso Wi-Fi, WebSocket e OTA
+│   ├── config.h             # Pinos, parâmetros e UUIDs dos serviços BLE
+│   ├── sensor_reader.h      # Processamento de pulso, debounce e métricas
+│   ├── ble_manager.h        # Servidor BLE (CSCS, FTMS, Battery Service)
+│   ├── storage_manager.h    # Persistência de parâmetros em Flash NVS
+│   ├── battery_monitor.h    # Leitura de ADC e curva percentual da 18650
+│   ├── power_manager.h      # Inatividade e controle de Deep Sleep
+│   ├── web_assets.h         # Single-Page Web App embarcada
+│   └── web_portal.h         # Servidor Web, Captive DNS e OTA Updater
 ├── src/
-│   ├── main.cpp             # Orquestrador principal
+│   ├── main.cpp             # Orquestrador e máquina de estados principal
 │   ├── sensor_reader.cpp
 │   ├── ble_manager.cpp
 │   ├── storage_manager.cpp
@@ -129,12 +187,13 @@ ergobike_ble/
 ├── test/
 │   ├── test_sensor_math.cpp  # Testes unitários do algoritmo do sensor
 │   └── test_battery_math.cpp # Testes unitários da curva da 18650
-├── platformio.ini           # Configuração PlatformIO
-└── min_spiffs.csv           # Tabela de partições para OTA
+├── platformio.ini           # Configuração de build do PlatformIO
+├── min_spiffs.csv           # Tabela de partições (Flash OTA 4MB)
+└── README.md
 ```
 
 ---
 
 ## 📄 Licença
 
-Projeto desenvolvido sob licença MIT. Sinta-se livre para usar, adaptar e compartilhar!
+Este projeto é disponibilizado sob a licença **MIT**. Sinta-se livre para usar, modificar e compartilhar.

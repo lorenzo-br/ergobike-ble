@@ -30,7 +30,7 @@ Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, co
   - Calibração guiada via navegador: dê 10 voltas no pedal e o sistema calcula a relação de polia da roda de inércia automaticamente.
 - **Gestão Inteligente de Energia (Deep Sleep):**
   - Desliga automaticamente após 3 minutos de inatividade.
-  - Desperta instantaneamente no primeiro pulso do ímã (GPIO 3 interrupt wake).
+  - Desperta instantaneamente no primeiro pulso do ímã (GPIO 21 interrupt wake).
 - **Portal Web Wi-Fi Responsivo + Atualização OTA:**
   - Dashboard ao vivo com velocímetro, cadência e nível de bateria.
   - Atualização de firmware sem fios (Over-The-Air) pelo celular ou notebook.
@@ -55,12 +55,43 @@ Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, co
 
 ## 🛠️ Esquema Elétrico e Conexões
 
+### Opção A: Placa de Expansão ESP32-C3 SuperMini (AliExpress) — *Recomendado*
+
+A placa de expansão para ESP32-C3 SuperMini simplifica a montagem física:
+- **Porta de Bateria PH2.0 integrada:** basta plugar a bateria 3.7V (18650 ou LiPo com conector PH2.0).
+- **Carregador de Bateria Onboard (LTC4054/LTH7R):** recarrega a bateria diretamente pela porta USB-C da placa com LED indicador de carga (Verde aceso = carregando, apagado = carregado/uso).
+- **Barramentos G-V-S (Ground, VCC, Signal):** facilitam o encaixe com conectores fêmea dupont.
+
+```
+                  Placa de Expansão ESP32-C3 SuperMini
+                  +-----------------------------------+
+[ BATERIA 3.7V ]  | [ Conector PH2.0 "BAT" ]          |
+Célula 18650 ---->| (Carregador Onboard + Regulador)  |
+                  |                                   |
+[ JACK P2 BIKE ]  | Barramento GPIO 21 (G - V - S)    |
+Ponta (Sinal) ------------------------------------> (S - Amarelo) GPIO 21 (INPUT_PULLUP)
+Malha (GND)   ------------------------------------> (G - Preto)   GND
+                                                   [V - Vermelho] VAZIO (NÃO LIGAR)
+                  |                                   |
+[ BOTÃO BOOT ]    | Integrado no ESP32-C3 SuperMini   | (GPIO 9 - Segure 2s para Wi-Fi)
+[ LED STATUS ]    | Integrado no ESP32-C3 SuperMini   | (GPIO 8 - Onboard Blue LED)
+                  +-----------------------------------+
+
+* Nota sobre Monitoramento de Bateria:
+- A placa de expansão alimenta o ESP32-C3 via regulador 3.3V integrado.
+- Modo Padrão Automático: Se não conectar divisor externo no GPIO 0, o firmware detecta
+  alimentação direta via porta BAT e opera continuamente sem falso alerta de bateria fraca.
+- (Opcional) Medição Precisa em Volts: Conecte um divisor 100k/100k entre o terminal positivo (BAT+)
+  da bateria e o GND, com o ponto central ligado ao pino (S) do GPIO 0.
+```
+
+### Opção B: Montagem Avulsa / DevKitM-1 Tradicional
+
 ```
                        ESP32-C3
                    +---------------+
 [ JACK P2 DA BIKE ]|               |
-Ponta (Sinal) -----[ 1kΩ ]---------| GPIO 3 (INPUT_PULLUP + WAKEUP)
-                   |               |
+Ponta (Sinal) ---------------------| GPIO 21 (INPUT_PULLUP + WAKEUP)
 Malha (GND)   -----+---------------| GND
                    |               |
 [ BATERIA 18650 ]  |               |
@@ -70,17 +101,17 @@ Polo (+) ----------[ 100kΩ ]---+---| GPIO 0 (ADC1_CH0)
                                |   |
 Polo (-) ----------------------+---| GND
                                    |
-[ BOTÃO SETUP ]--------------------| GPIO 9 (Nativo BOOT)
+[ BOTÃO SETUP ]--------------------| GPIO 9 (Nativo BOOT - Segure 2s para Wi-Fi)
 [ LED STATUS ]---------------------| GPIO 8 (Ativo em nível LOW)
                    +---------------+
 ```
 
 ### Lista de Componentes Eletrônicos:
-1. **Placa ESP32-C3** (ex: C3 SuperMini, C3 DevKitM-1 ou similar).
-2. **Célula 18650 3.7V** + Suporte/Holder 18650 com terminais.
-3. **Conector Jack P2 (3.5 mm) ou P1 (2.5 mm)** mono/estéreo.
-4. **1x Resistor 1kΩ** (ligado em série no pino de sinal para proteção contra ESD da esteira/correia).
-5. **2x Resistores 100kΩ** (divisor de tensão 1:2 para leitura segura no ADC de até 4.2V).
+1. **Microcontrolador:** Placa ESP32-C3 SuperMini + **Placa de Expansão ESP32-C3 SuperMini** (AliExpress).
+2. **Bateria:** Célula 18650 3.7V Li-ion (ou bateria LiPo) com conector JST PH 2.0mm.
+3. **Conector do Sensor:** Conector Jack P2 (3.5 mm) ou P1 (2.5 mm) fêmea/macho.
+4. **Resistor de Proteção:** 1x Resistor 1kΩ (ligado em série no pino de sinal para proteção ESD).
+5. *(Opcional)* **2x Resistores 100kΩ:** apenas se desejar leitura analógica contínua da tensão da bateria no GPIO 0.
 
 ---
 

@@ -17,6 +17,7 @@ public:
     float getVoltage() const;
     uint8_t getPercentage() const;
     bool isCritical() const;
+    bool isMonitored() const;
 
     // Direct math conversion helper for unit tests and calibration
     static uint8_t voltageToPercentage(float voltage);

@@ -7,7 +7,7 @@
 // HARDWARE PIN DEFINITIONS (ESP32-C3)
 // =============================================================================
 #ifndef PIN_SENSOR
-#define PIN_SENSOR          3   // GPIO 3: P2 Jack tip (Sensor input, interrupt + wakeup)
+#define PIN_SENSOR          21  // GPIO 21: P2 Jack tip (Sensor input, interrupt + wakeup)
 #endif
 
 #ifndef PIN_BATTERY_ADC

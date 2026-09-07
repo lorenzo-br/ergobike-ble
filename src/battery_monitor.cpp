@@ -98,10 +98,17 @@ void BatteryMonitor::update() {
 #endif
 
     m_voltage = readAdcVoltage();
-    m_percentage = voltageToPercentage(m_voltage);
-    m_isCritical = (m_voltage < 3.05f);
+    if (m_voltage < 2.0f) {
+        // Direct power via expansion board battery port (no external divider on GPIO 0)
+        m_percentage = 100;
+        m_isCritical = false;
+    } else {
+        m_percentage = voltageToPercentage(m_voltage);
+        m_isCritical = (m_voltage < 3.05f);
+    }
 }
 
 float BatteryMonitor::getVoltage() const { return m_voltage; }
 uint8_t BatteryMonitor::getPercentage() const { return m_percentage; }
 bool BatteryMonitor::isCritical() const { return m_isCritical; }
+bool BatteryMonitor::isMonitored() const { return m_voltage >= 2.0f; }

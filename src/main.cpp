@@ -28,6 +28,7 @@ static uint32_t s_pulseFlashUntilMs = 0;
 void IRAM_ATTR isr_sensor_trigger() {
     uint64_t now_us = esp_timer_get_time();
     s_sensor.onPulse(now_us);
+    s_pulseFlashUntilMs = millis() + 40;
 }
 
 // Check if BOOT button is held at power-on to enter Wi-Fi Setup Mode
@@ -73,12 +74,13 @@ void setup() {
     s_battery.begin(config);
     s_power.begin(config);
 
-    // Check if user requested Wi-Fi Setup Portal
-    s_isConfigMode = checkSetupButtonHeld();
-
-    // Attach Sensor Interrupt (GPIO 3)
+    // Initialize Button & Sensor Pins
+    pinMode(PIN_BTN_SETUP, INPUT_PULLUP);
     pinMode(PIN_SENSOR, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), isr_sensor_trigger, FALLING);
+
+    // Check if user requested Wi-Fi Setup Portal at boot
+    s_isConfigMode = checkSetupButtonHeld();
 
     if (s_isConfigMode) {
         Serial.println("[MODE] >>> INICIANDO MODO WI-FI / PORTAL DE CONFIGURAÇÃO <<<");
@@ -134,6 +136,22 @@ void loop() {
         s_portal.update();
         s_battery.update();
     } else {
+        // Monitor setup button during runtime (hold 2s to switch to config mode)
+        static uint32_t s_btnPressStartMs = 0;
+        if (digitalRead(PIN_BTN_SETUP) == LOW) {
+            if (s_btnPressStartMs == 0) {
+                s_btnPressStartMs = now_ms;
+            } else if (now_ms - s_btnPressStartMs >= 2000) {
+                Serial.println("[BOOT] Setup button held for 2s. Switching to Wi-Fi Setup Mode...");
+                s_ble.stop();
+                s_isConfigMode = true;
+                s_portal.begin(&s_storage, &s_sensor, &s_battery);
+                s_btnPressStartMs = 0;
+            }
+        } else {
+            s_btnPressStartMs = 0;
+        }
+
         // Run BLE Normal Mode
         s_battery.update();
         s_ble.update(s_sensor, s_battery);

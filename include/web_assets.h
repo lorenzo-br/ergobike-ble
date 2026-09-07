@@ -1,5 +1,13 @@
 #pragma once
 
+#ifndef NATIVE_TEST
+#include <Arduino.h>
+#else
+#ifndef PROGMEM
+#define PROGMEM
+#endif
+#endif
+
 // Single-page responsive HTML/CSS/JS Application (No internet/CDN needed)
 static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -181,8 +189,13 @@ function updateStatus() {
       document.getElementById('valCadence').innerText = d.cadence.toFixed(1);
       document.getElementById('valSpeed').innerText = d.speed.toFixed(1);
       document.getElementById('valPulses').innerText = d.pulses;
-      document.getElementById('valBattery').innerText = d.batteryPct + '%';
-      document.getElementById('valBatteryV').innerText = 'Bateria 18650 (' + d.batteryV.toFixed(2) + 'V)';
+      if (d.batteryV >= 2.0) {
+        document.getElementById('valBattery').innerText = d.batteryPct + '%';
+        document.getElementById('valBatteryV').innerText = 'Bateria 18650 (' + d.batteryV.toFixed(2) + 'V)';
+      } else {
+        document.getElementById('valBattery').innerText = 'OK';
+        document.getElementById('valBatteryV').innerText = 'Placa Expansão (Porta BAT)';
+      }
 
       if (d.pulses !== lastPulseTotal) {
         lastPulseTotal = d.pulses;

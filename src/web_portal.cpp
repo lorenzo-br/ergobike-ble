@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
 #include <DNSServer.h>
 #include <Update.h>
 #include <ArduinoJson.h>
@@ -26,7 +27,7 @@ void WebPortal::setupRoutes() {
 #ifndef NATIVE_TEST
     // 1. Captive Portal / Root HTML
     s_server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
-        request->send_P(200, "text/html", INDEX_HTML);
+        request->send(200, "text/html", INDEX_HTML);
     });
 
     // Captive portal fallback redirects

@@ -93,14 +93,17 @@ void SensorReader::onPulse(uint64_t timestamp_us) {
         uint64_t avg_delta_us = sum / m_bufferCount;
 
         if (avg_delta_us > 0) {
-            // Speed (km/h) = (Circumference (m) / Time for 1 wheel rev (s)) * 3.6
-            // Time for 1 wheel rev = (avg_delta_us * gearRatio) in seconds
+            // Cadence (RPM) = 60 / crank_time_s
+            // Crank time (s) = time between flywheel pulses * gearRatio
             float crank_time_s = ((float)avg_delta_us * m_config.gearRatio) / 1000000.0f;
             if (crank_time_s > 0.0001f) {
                 m_cadenceRpm = 60.0f / crank_time_s;
                 
+                // Speed (km/h) = (Circumference (m) / Time for 1 wheel rev (s)) * 3.6
+                // Each pulse is 1 wheel/flywheel revolution (consistent with CSCS cumulativeWheelRevs)
                 float wheel_circ_m = (float)m_config.wheelCircMm / 1000.0f;
-                m_speedKmh = (wheel_circ_m / crank_time_s) * 3.6f;
+                float wheel_time_s = (float)avg_delta_us / 1000000.0f;
+                m_speedKmh = (wheel_circ_m / wheel_time_s) * 3.6f;
                 m_isPedaling = true;
             }
         }

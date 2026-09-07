@@ -48,10 +48,10 @@ void test_speed_cadence_math() {
     float speed = sensor.getSpeedKmh();
 
     std::cout << "  Cadence: " << cadence << " RPM (Expected ~60.0)" << std::endl;
-    std::cout << "  Speed: " << speed << " km/h (Expected ~7.2)" << std::endl;
+    std::cout << "  Speed: " << speed << " km/h (Expected ~28.8)" << std::endl;
 
     assert(std::fabs(cadence - 60.0f) < 0.5f);
-    assert(std::fabs(speed - 7.2f) < 0.2f);
+    assert(std::fabs(speed - 28.8f) < 0.2f);
     assert(sensor.isPedaling() == true);
     std::cout << "  -> test_speed_cadence_math PASSED!" << std::endl;
 }

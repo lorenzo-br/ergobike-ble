@@ -204,11 +204,12 @@ void BLEManager::notifyFTMS(const SensorReader& sensor) {
     if (!s_pCharFtmsData || !s_pCharFtmsData->getSubscribedCount()) return;
 
     // FTMS Indoor Bike Data packet format:
-    // Bytes 0..1: Flags (0x0004 -> Instantaneous Cadence Present)
+    // Bytes 0..1: Flags (0x0002 -> Instantaneous Cadence Present;
+    // bit 0 = 0 keeps Instantaneous Speed present)
     // Bytes 2..3: Instantaneous Speed (uint16_t, unit: 0.01 km/h)
     // Bytes 4..5: Instantaneous Cadence (uint16_t, unit: 0.5 RPM)
     uint8_t buffer[6];
-    uint16_t flags = 0x0004;
+    uint16_t flags = 0x0002;
     buffer[0] = (uint8_t)(flags & 0xFF);
     buffer[1] = (uint8_t)((flags >> 8) & 0xFF);
 

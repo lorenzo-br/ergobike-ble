@@ -32,19 +32,20 @@ void PowerManager::setConfig(const BikeConfig& config) {
 
 void PowerManager::configureWakeupSources() {
 #ifndef NATIVE_TEST
-    gpio_config_t io_conf = {};
-    io_conf.intr_type = GPIO_INTR_LOW_LEVEL;
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = (1ULL << PIN_SENSOR);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    gpio_config(&io_conf);
-
     if (PIN_SENSOR <= 5) {
+        gpio_config_t io_conf = {};
+        io_conf.intr_type = GPIO_INTR_LOW_LEVEL;
+        io_conf.mode = GPIO_MODE_INPUT;
+        io_conf.pin_bit_mask = (1ULL << PIN_SENSOR);
+        io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+        gpio_config(&io_conf);
+
         // ESP32-C3 RTC GPIOs (0 to 5) support Deep Sleep (< 15 µA)
         esp_deep_sleep_enable_gpio_wakeup(1ULL << PIN_SENSOR, ESP_GPIO_WAKEUP_GPIO_LOW);
     } else {
         // Digital GPIOs (> 5, e.g. GPIO 21) support Light Sleep (~1.5 mA)
+        // The sensor pin is already configured by main before this method runs.
         gpio_wakeup_enable((gpio_num_t)PIN_SENSOR, GPIO_INTR_LOW_LEVEL);
         esp_sleep_enable_gpio_wakeup();
     }
@@ -87,9 +88,6 @@ void PowerManager::enterDeepSleep() {
     // Turn off LED before sleep
     pinMode(PIN_LED_STATUS, OUTPUT);
     digitalWrite(PIN_LED_STATUS, HIGH); // Off for active-low
-
-    // Ensure wakeup pins are armed
-    configureWakeupSources();
 
     if (PIN_SENSOR <= 5) {
         // True Deep Sleep for RTC GPIOs (0 to 5)

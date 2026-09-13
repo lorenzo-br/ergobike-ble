@@ -72,11 +72,13 @@ void setup() {
     // Initialize Core Modules
     s_sensor.begin(config);
     s_battery.begin(config);
-    s_power.begin(config);
 
     // Initialize Button & Sensor Pins
     pinMode(PIN_BTN_SETUP, INPUT_PULLUP);
     pinMode(PIN_SENSOR, INPUT_PULLUP);
+
+    s_power.begin(config);
+
     attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), isr_sensor_trigger, FALLING);
 
     // Check if user requested Wi-Fi Setup Portal at boot

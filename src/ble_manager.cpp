@@ -214,11 +214,11 @@ void BLEManager::notifyFTMS(const SensorReader& sensor) {
     buffer[0] = (uint8_t)(flags & 0xFF);
     buffer[1] = (uint8_t)((flags >> 8) & 0xFF);
 
-    uint16_t speedUnits = (uint16_t)(sensor.getSpeedKmh() * 100.0f);
+    uint16_t speedUnits = (uint16_t)(sensor.getSpeedKmh() * 100.0f + 0.5f);
     buffer[2] = (uint8_t)(speedUnits & 0xFF);
     buffer[3] = (uint8_t)((speedUnits >> 8) & 0xFF);
 
-    uint16_t cadenceUnits = (uint16_t)(sensor.getCadenceRpm() * 2.0f);
+    uint16_t cadenceUnits = (uint16_t)(sensor.getCadenceRpm() * 2.0f + 0.5f);
     buffer[4] = (uint8_t)(cadenceUnits & 0xFF);
     buffer[5] = (uint8_t)((cadenceUnits >> 8) & 0xFF);
 

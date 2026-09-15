@@ -27,7 +27,7 @@
 // =============================================================================
 #define DEFAULT_DEVICE_NAME         "ErgoBike-BLE"
 #define DEFAULT_WHEEL_CIRC_MM       4367      // Virtual circ. (mm) calibrated so the bike computer's 15 km/h matches FTMS/app speed (4.17 m/s)
-#define DEFAULT_GEAR_RATIO          4.50f     // Flywheel pulses per 1 full crank (pedal) revolution
+#define DEFAULT_GEAR_RATIO          1.00f     // Bike sensor gives 1 pulse per crank (pedal) revolution
 #define DEFAULT_DEBOUNCE_MS         15        // Sensor software debounce filter (milliseconds)
 #define DEFAULT_INACTIVITY_SLEEP_SEC 180      // 3 minutes before auto Deep Sleep
 #define DEFAULT_STOP_TIMEOUT_MS     2200      // Stop detection: 2.2 seconds with no pulse => 0 RPM / 0 km/h

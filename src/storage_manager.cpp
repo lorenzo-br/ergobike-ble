@@ -21,7 +21,7 @@ void StorageManager::loadDefaults() {
     m_config.debounceMs = DEFAULT_DEBOUNCE_MS;
     m_config.inactivitySleepSec = DEFAULT_INACTIVITY_SLEEP_SEC;
     m_config.adcMultiplier = DEFAULT_ADC_CAL_FACTOR;
-    m_config.nvsVersion = 2;
+    m_config.nvsVersion = 3;
 }
 
 void StorageManager::sanitize() {
@@ -53,8 +53,24 @@ bool StorageManager::begin() {
     }
 
     uint16_t ver = s_prefs.getUShort("ver", 0);
-    if (ver != 2) {
-        if (ver == 1) {
+    if (ver != 3) {
+        if (ver == 2) {
+            // Migrate v2 -> v3: the bike sensor gives 1 pulse per crank turn.
+            String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
+            uint16_t circ = s_prefs.getUShort("circ", DEFAULT_WHEEL_CIRC_MM);
+            uint16_t deb = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
+            uint16_t sleep = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
+            float adc = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
+            loadDefaults();
+            strncpy(m_config.deviceName, name.c_str(), sizeof(m_config.deviceName) - 1);
+            m_config.deviceName[sizeof(m_config.deviceName) - 1] = '\0';
+            m_config.wheelCircMm = circ;
+            m_config.debounceMs = deb;
+            m_config.inactivitySleepSec = sleep;
+            m_config.adcMultiplier = adc;
+            sanitize();
+            saveConfig(m_config);
+        } else if (ver == 1) {
             // Migrate v1 -> v2: keep the user's calibrated settings, but apply
             // the new virtual circumference so FTMS speed matches the bike computer.
             String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
@@ -86,7 +102,7 @@ bool StorageManager::begin() {
         m_config.debounceMs = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
         m_config.inactivitySleepSec = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
         m_config.adcMultiplier = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
-        m_config.nvsVersion = 2;
+        m_config.nvsVersion = 3;
         sanitize();
     }
     s_prefs.end();

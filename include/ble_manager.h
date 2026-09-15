@@ -17,6 +17,10 @@ public:
 
     void setDeviceConnected(bool connected);
 
+    static constexpr bool cscServiceEnabled() {
+        return ERGOBIKE_FTMS_ONLY == 0;
+    }
+
 private:
     char m_deviceName[32];
     bool m_isConnected;

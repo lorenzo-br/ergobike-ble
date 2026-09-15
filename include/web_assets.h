@@ -130,9 +130,9 @@ input:focus { border-color: var(--primary); }
           <div class="hint">Pulsos do volante por volta do pedal.</div>
         </div>
         <div class="form-group">
-          <label>Circunferência Roda (mm)</label>
-          <input type="number" min="500" max="3500" id="cfgCirc" name="circ" required>
-          <div class="hint">Padrão 2096mm (Aro 700x23c).</div>
+          <label>Distância Efetiva por Pulso (mm)</label>
+          <input type="number" min="500" max="5000" id="cfgCirc" name="circ" required>
+          <div class="hint">Distância efetiva por pulso; neste projeto o padrão é 5000mm por volta do pedal.</div>
         </div>
       </div>
       <div class="grid-2">

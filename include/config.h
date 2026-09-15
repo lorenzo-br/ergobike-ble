@@ -22,11 +22,15 @@
 #define PIN_LED_STATUS      8   // GPIO 8: Status LED (Active LOW on most C3 modules)
 #endif
 
+#ifndef ERGOBIKE_FTMS_ONLY
+#define ERGOBIKE_FTMS_ONLY  0   // Set to 1 for MyWhoosh compatibility testing
+#endif
+
 // =============================================================================
 // DEFAULT FACTORY PARAMETERS
 // =============================================================================
 #define DEFAULT_DEVICE_NAME         "ErgoBike-BLE"
-#define DEFAULT_WHEEL_CIRC_MM       4367      // Virtual circ. (mm) calibrated so the bike computer's 15 km/h matches FTMS/app speed (4.17 m/s)
+#define DEFAULT_WHEEL_CIRC_MM       5000      // Effective distance per sensor pulse (5 m per pedal revolution)
 #define DEFAULT_GEAR_RATIO          1.00f     // Bike sensor gives 1 pulse per crank (pedal) revolution
 #define DEFAULT_DEBOUNCE_MS         15        // Sensor software debounce filter (milliseconds)
 #define DEFAULT_INACTIVITY_SLEEP_SEC 180      // 3 minutes before auto Deep Sleep
@@ -50,6 +54,8 @@
 #define UUID_SERVICE_FTMS           "1826"
 #define UUID_CHAR_INDOOR_BIKE_DATA  "2AD2"
 #define UUID_CHAR_FTMS_FEATURE      "2ACC"
+#define UUID_CHAR_FTMS_CONTROL_POINT "2AD9"
+#define UUID_CHAR_FTMS_STATUS       "2ADA"
 
 // Battery Service (BAS)
 #define UUID_SERVICE_BATTERY        "180F"
@@ -66,7 +72,7 @@
 // =============================================================================
 struct BikeConfig {
     char deviceName[32];
-    uint16_t wheelCircMm;       // Circumference in millimeters
+    uint16_t wheelCircMm;       // Effective distance per sensor pulse, in millimeters
     float gearRatio;            // Flywheel revolutions per 1 pedal crank turn
     uint16_t debounceMs;        // Debounce window in ms
     uint16_t inactivitySleepSec;// Timeout before deep sleep

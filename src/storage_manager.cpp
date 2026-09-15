@@ -21,7 +21,7 @@ void StorageManager::loadDefaults() {
     m_config.debounceMs = DEFAULT_DEBOUNCE_MS;
     m_config.inactivitySleepSec = DEFAULT_INACTIVITY_SLEEP_SEC;
     m_config.adcMultiplier = DEFAULT_ADC_CAL_FACTOR;
-    m_config.nvsVersion = 3;
+    m_config.nvsVersion = storage::currentNvsVersion;
 }
 
 void StorageManager::sanitize() {
@@ -53,9 +53,28 @@ bool StorageManager::begin() {
     }
 
     uint16_t ver = s_prefs.getUShort("ver", 0);
-    if (ver != 3) {
-        if (ver == 2) {
-            // Migrate v2 -> v3: the bike sensor gives 1 pulse per crank turn.
+    bool needsSave = false;
+    if (ver != storage::currentNvsVersion) {
+        if (ver == 3) {
+            // Migrate v3 -> v4 and replace only the previous shipped default.
+            String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
+            uint16_t circ = s_prefs.getUShort("circ", DEFAULT_WHEEL_CIRC_MM);
+            float ratio = s_prefs.getFloat("ratio", DEFAULT_GEAR_RATIO);
+            uint16_t deb = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
+            uint16_t sleep = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
+            float adc = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
+            loadDefaults();
+            strncpy(m_config.deviceName, name.c_str(), sizeof(m_config.deviceName) - 1);
+            m_config.deviceName[sizeof(m_config.deviceName) - 1] = '\0';
+            m_config.wheelCircMm = storage::migrateWheelCircMm(circ);
+            m_config.gearRatio = ratio;
+            m_config.debounceMs = deb;
+            m_config.inactivitySleepSec = sleep;
+            m_config.adcMultiplier = adc;
+            sanitize();
+            needsSave = true;
+        } else if (ver == 2) {
+            // Migrate v2 -> v4: the bike sensor gives 1 pulse per crank turn.
             String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
             uint16_t circ = s_prefs.getUShort("circ", DEFAULT_WHEEL_CIRC_MM);
             uint16_t deb = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
@@ -64,14 +83,14 @@ bool StorageManager::begin() {
             loadDefaults();
             strncpy(m_config.deviceName, name.c_str(), sizeof(m_config.deviceName) - 1);
             m_config.deviceName[sizeof(m_config.deviceName) - 1] = '\0';
-            m_config.wheelCircMm = circ;
+            m_config.wheelCircMm = storage::migrateWheelCircMm(circ);
             m_config.debounceMs = deb;
             m_config.inactivitySleepSec = sleep;
             m_config.adcMultiplier = adc;
             sanitize();
-            saveConfig(m_config);
+            needsSave = true;
         } else if (ver == 1) {
-            // Migrate v1 -> v2: keep the user's calibrated settings, but apply
+            // Migrate v1 -> v4: keep the user's calibrated settings, but apply
             // the new virtual circumference so FTMS speed matches the bike computer.
             String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
             float ratio = s_prefs.getFloat("ratio", DEFAULT_GEAR_RATIO);
@@ -86,11 +105,11 @@ bool StorageManager::begin() {
             m_config.inactivitySleepSec = sleep;
             m_config.adcMultiplier = adc;
             sanitize();
-            saveConfig(m_config);
+            needsSave = true;
         } else {
             // First boot or unknown schema -> save defaults
             loadDefaults();
-            saveConfig(m_config);
+            needsSave = true;
         }
     } else {
         String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
@@ -102,10 +121,13 @@ bool StorageManager::begin() {
         m_config.debounceMs = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
         m_config.inactivitySleepSec = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
         m_config.adcMultiplier = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
-        m_config.nvsVersion = 3;
+        m_config.nvsVersion = storage::currentNvsVersion;
         sanitize();
     }
     s_prefs.end();
+    if (needsSave) {
+        saveConfig(m_config);
+    }
 #endif
     m_initialized = true;
     return true;
@@ -117,17 +139,19 @@ BikeConfig StorageManager::getConfig() const {
 
 void StorageManager::saveConfig(const BikeConfig& cfg) {
     m_config = cfg;
+    m_config.nvsVersion = storage::currentNvsVersion;
     sanitize();
 
 #ifndef NATIVE_TEST
     if (s_prefs.begin(PREFS_NAMESPACE, false)) {
-        s_prefs.putUShort("ver", m_config.nvsVersion);
         s_prefs.putString("name", m_config.deviceName);
         s_prefs.putUShort("circ", m_config.wheelCircMm);
         s_prefs.putFloat("ratio", m_config.gearRatio);
         s_prefs.putUShort("deb", m_config.debounceMs);
         s_prefs.putUShort("sleep", m_config.inactivitySleepSec);
         s_prefs.putFloat("adc", m_config.adcMultiplier);
+        // Commit the schema marker last so an interrupted write is retried.
+        s_prefs.putUShort("ver", m_config.nvsVersion);
         s_prefs.end();
     }
 #endif

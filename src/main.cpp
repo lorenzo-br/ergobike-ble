@@ -90,7 +90,11 @@ void setup() {
     } else {
         Serial.println("[MODE] >>> INICIANDO MODO NORMAL / BLUETOOTH LOW ENERGY <<<");
         s_ble.begin(config.deviceName);
+#if ERGOBIKE_FTMS_ONLY
+        Serial.println("[BLE] Anunciando FTMS (0x1826) + Bateria (0x180F)...");
+#else
         Serial.println("[BLE] Anunciando CSCS (0x1816) + FTMS (0x1826) + Bateria (0x180F)...");
+#endif
         Serial.println("[BLE] Pronto para conectar com CycleGo, Zwift e outros apps!");
     }
 }

@@ -1,4 +1,6 @@
 #include "ble_manager.h"
+#include "ftms_control_point.h"
+#include "ftms_indoor_bike_data.h"
 #include <string.h>
 
 #ifndef NATIVE_TEST
@@ -8,17 +10,21 @@
 static NimBLEServer* s_pServer = nullptr;
 static NimBLECharacteristic* s_pCharCscMeas = nullptr;
 static NimBLECharacteristic* s_pCharFtmsData = nullptr;
+static NimBLECharacteristic* s_pCharFtmsStatus = nullptr;
 static NimBLECharacteristic* s_pCharBatteryLevel = nullptr;
 static BLEManager* s_instance = nullptr;
+static ftms::ControlPointState s_ftmsControlState;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) override {
+        s_ftmsControlState = {};
         if (s_instance) {
             s_instance->setDeviceConnected(true);
         }
     }
 
     void onDisconnect(NimBLEServer* pServer) override {
+        s_ftmsControlState = {};
         if (s_instance) {
             s_instance->setDeviceConnected(false);
         }
@@ -28,6 +34,46 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 static ServerCallbacks s_serverCallbacks;
+
+static void notifyFtmsStatus(uint8_t status) {
+    if (!s_pCharFtmsStatus || !s_pCharFtmsStatus->getSubscribedCount()) return;
+
+    s_pCharFtmsStatus->setValue(&status, 1);
+    s_pCharFtmsStatus->notify();
+}
+
+class FtmsControlPointCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+        NimBLEAttValue request = pCharacteristic->getValue();
+        uint8_t response[3];
+        std::size_t responseLength = ftms::buildResponse(
+            request.data(), request.size(), response, sizeof(response), s_ftmsControlState);
+        if (responseLength == 0) return;
+
+        Serial.printf("[FTMS] Control Point opcode: 0x%02X, status: 0x%02X\n",
+                      request.data()[0], response[2]);
+        pCharacteristic->setValue(response, responseLength);
+        pCharacteristic->indicate();
+
+        if (response[2] == ftms::kSuccess) {
+            switch (request.data()[0]) {
+                case 0x01: // Reset
+                    notifyFtmsStatus(ftms::kStatusReset);
+                    break;
+                case 0x07: // Start/Resume
+                    notifyFtmsStatus(ftms::kStatusStartedOrResumedByUser);
+                    break;
+                case 0x08: // Stop/Pause
+                    notifyFtmsStatus(ftms::kStatusStoppedOrPausedByUser);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+};
+
+static FtmsControlPointCallbacks s_ftmsControlPointCallbacks;
 #endif
 
 BLEManager::BLEManager()
@@ -63,6 +109,7 @@ void BLEManager::begin(const char* deviceName) {
     s_pServer = NimBLEDevice::createServer();
     s_pServer->setCallbacks(&s_serverCallbacks);
 
+#if !ERGOBIKE_FTMS_ONLY
     // =========================================================================
     // 1. Cycling Speed and Cadence Service (CSCS - 0x1816)
     // =========================================================================
@@ -88,6 +135,7 @@ void BLEManager::begin(const char* deviceName) {
     pCharSensorLoc->setValue(&sensorLocation, 1);
 
     pCscService->start();
+#endif
 
     // =========================================================================
     // 2. Fitness Machine Service (FTMS - 0x1826)
@@ -99,12 +147,28 @@ void BLEManager::begin(const char* deviceName) {
         NIMBLE_PROPERTY::NOTIFY
     );
 
+    s_pCharFtmsStatus = pFtmsService->createCharacteristic(
+        UUID_CHAR_FTMS_STATUS,
+        NIMBLE_PROPERTY::NOTIFY
+    );
+    uint8_t initialFtmsStatus = ftms::kStatusReset;
+    s_pCharFtmsStatus->setValue(&initialFtmsStatus, 1);
+
     NimBLECharacteristic* pCharFtmsFeature = pFtmsService->createCharacteristic(
         UUID_CHAR_FTMS_FEATURE,
         NIMBLE_PROPERTY::READ
     );
-    uint32_t ftmsFeatures[2] = { 0x00000002, 0x00000000 }; // Cadence supported
+    uint32_t ftmsFeatures[2] = {
+        ftms::kMachineFeatureFlags, // Cadence + Power Measurement supported
+        0x00000000
+    };
     pCharFtmsFeature->setValue((uint8_t*)ftmsFeatures, 8);
+
+    NimBLECharacteristic* pFtmsControlPoint = pFtmsService->createCharacteristic(
+        UUID_CHAR_FTMS_CONTROL_POINT,
+        NIMBLE_PROPERTY::WRITE_ENC | NIMBLE_PROPERTY::INDICATE
+    );
+    pFtmsControlPoint->setCallbacks(&s_ftmsControlPointCallbacks);
 
     pFtmsService->start();
 
@@ -151,7 +215,9 @@ void BLEManager::begin(const char* deviceName) {
     // 5. BLE Advertising Configuration
     // =========================================================================
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+#if !ERGOBIKE_FTMS_ONLY
     pAdvertising->addServiceUUID(UUID_SERVICE_CSC);
+#endif
     pAdvertising->addServiceUUID(UUID_SERVICE_FTMS);
     pAdvertising->addServiceUUID(UUID_SERVICE_BATTERY);
     pAdvertising->setScanResponse(true);
@@ -165,6 +231,7 @@ void BLEManager::begin(const char* deviceName) {
 
 void BLEManager::notifyCSC(const SensorReader& sensor) {
 #ifndef NATIVE_TEST
+#if !ERGOBIKE_FTMS_ONLY
     if (!s_pCharCscMeas || !s_pCharCscMeas->getSubscribedCount()) return;
 
     // CSCS Measurement packet format:
@@ -196,6 +263,9 @@ void BLEManager::notifyCSC(const SensorReader& sensor) {
 
     s_pCharCscMeas->setValue(buffer, sizeof(buffer));
     s_pCharCscMeas->notify();
+#else
+    (void)sensor;
+#endif
 #endif
 }
 
@@ -204,25 +274,17 @@ void BLEManager::notifyFTMS(const SensorReader& sensor) {
     if (!s_pCharFtmsData || !s_pCharFtmsData->getSubscribedCount()) return;
 
     // FTMS Indoor Bike Data packet format:
-    // Bytes 0..1: Flags (0x0004 -> Instantaneous Cadence Present;
-    // bit 1 = Average Speed, bit 2 = Instantaneous Cadence per FTMS spec,
-    // as confirmed by nRF Connect parsing)
+    // Bytes 0..1: Flags (0x0044 -> Instantaneous Cadence + Power Present;
+    // bit 2 = Instantaneous Cadence, bit 6 = Instantaneous Power)
     // Bytes 2..3: Instantaneous Speed (uint16_t, unit: 0.01 km/h)
     // Bytes 4..5: Instantaneous Cadence (uint16_t, unit: 0.5 RPM)
-    uint8_t buffer[6];
-    uint16_t flags = 0x0004;
-    buffer[0] = (uint8_t)(flags & 0xFF);
-    buffer[1] = (uint8_t)((flags >> 8) & 0xFF);
+    // Bytes 6..7: Instantaneous Power (sint16_t, unit: 1 W; estimated)
+    uint8_t buffer[8];
+    std::size_t length = ftms::buildIndoorBikeData(
+        sensor.getSpeedKmh(), sensor.getCadenceRpm(), buffer, sizeof(buffer));
+    if (length == 0) return;
 
-    uint16_t speedUnits = (uint16_t)(sensor.getSpeedKmh() * 100.0f + 0.5f);
-    buffer[2] = (uint8_t)(speedUnits & 0xFF);
-    buffer[3] = (uint8_t)((speedUnits >> 8) & 0xFF);
-
-    uint16_t cadenceUnits = (uint16_t)(sensor.getCadenceRpm() * 2.0f + 0.5f);
-    buffer[4] = (uint8_t)(cadenceUnits & 0xFF);
-    buffer[5] = (uint8_t)((cadenceUnits >> 8) & 0xFF);
-
-    s_pCharFtmsData->setValue(buffer, sizeof(buffer));
+    s_pCharFtmsData->setValue(buffer, length);
     s_pCharFtmsData->notify();
 #endif
 }
@@ -244,7 +306,9 @@ void BLEManager::update(const SensorReader& sensor, const BatteryMonitor& batter
     // Broadcast speed & cadence updates every 500ms (or on demand)
     if (now - m_lastNotifyMs >= 500) {
         m_lastNotifyMs = now;
+#if !ERGOBIKE_FTMS_ONLY
         notifyCSC(sensor);
+#endif
         notifyFTMS(sensor);
     }
 

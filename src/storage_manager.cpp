@@ -21,14 +21,14 @@ void StorageManager::loadDefaults() {
     m_config.debounceMs = DEFAULT_DEBOUNCE_MS;
     m_config.inactivitySleepSec = DEFAULT_INACTIVITY_SLEEP_SEC;
     m_config.adcMultiplier = DEFAULT_ADC_CAL_FACTOR;
-    m_config.nvsVersion = 1;
+    m_config.nvsVersion = 2;
 }
 
 void StorageManager::sanitize() {
     if (strlen(m_config.deviceName) == 0) {
         strncpy(m_config.deviceName, DEFAULT_DEVICE_NAME, sizeof(m_config.deviceName) - 1);
     }
-    if (m_config.wheelCircMm < 500 || m_config.wheelCircMm > 4000) {
+    if (m_config.wheelCircMm < 500 || m_config.wheelCircMm > 5000) {
         m_config.wheelCircMm = DEFAULT_WHEEL_CIRC_MM;
     }
     if (m_config.gearRatio < 0.1f || m_config.gearRatio > 50.0f) {
@@ -53,10 +53,29 @@ bool StorageManager::begin() {
     }
 
     uint16_t ver = s_prefs.getUShort("ver", 0);
-    if (ver != 1) {
-        // First boot or schema change -> save defaults
-        loadDefaults();
-        saveConfig(m_config);
+    if (ver != 2) {
+        if (ver == 1) {
+            // Migrate v1 -> v2: keep the user's calibrated settings, but apply
+            // the new virtual circumference so FTMS speed matches the bike computer.
+            String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
+            float ratio = s_prefs.getFloat("ratio", DEFAULT_GEAR_RATIO);
+            uint16_t deb = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
+            uint16_t sleep = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
+            float adc = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
+            loadDefaults();
+            strncpy(m_config.deviceName, name.c_str(), sizeof(m_config.deviceName) - 1);
+            m_config.deviceName[sizeof(m_config.deviceName) - 1] = '\0';
+            m_config.gearRatio = ratio;
+            m_config.debounceMs = deb;
+            m_config.inactivitySleepSec = sleep;
+            m_config.adcMultiplier = adc;
+            sanitize();
+            saveConfig(m_config);
+        } else {
+            // First boot or unknown schema -> save defaults
+            loadDefaults();
+            saveConfig(m_config);
+        }
     } else {
         String name = s_prefs.getString("name", DEFAULT_DEVICE_NAME);
         strncpy(m_config.deviceName, name.c_str(), sizeof(m_config.deviceName) - 1);
@@ -67,7 +86,7 @@ bool StorageManager::begin() {
         m_config.debounceMs = s_prefs.getUShort("deb", DEFAULT_DEBOUNCE_MS);
         m_config.inactivitySleepSec = s_prefs.getUShort("sleep", DEFAULT_INACTIVITY_SLEEP_SEC);
         m_config.adcMultiplier = s_prefs.getFloat("adc", DEFAULT_ADC_CAL_FACTOR);
-        m_config.nvsVersion = 1;
+        m_config.nvsVersion = 2;
         sanitize();
     }
     s_prefs.end();

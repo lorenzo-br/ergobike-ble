@@ -49,6 +49,9 @@
 #define UUID_CHAR_CSC_MEASUREMENT   "2A5B"
 #define UUID_CHAR_CSC_FEATURE       "2A5C"
 #define UUID_CHAR_SENSOR_LOCATION   "2A5D"
+#define UUID_CHAR_CSC_CONTROL_POINT "2A55"
+#define CSC_APPEARANCE              0x0485  // Cycling: Speed and Cadence Sensor
+#define CSC_SENSOR_LOCATION         0x05    // Left Crank
 
 // Fitness Machine Service (FTMS)
 #define UUID_SERVICE_FTMS           "1826"

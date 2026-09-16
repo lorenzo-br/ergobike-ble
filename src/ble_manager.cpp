@@ -1,4 +1,5 @@
 #include "ble_manager.h"
+#include "csc_control_point.h"
 #include "ftms_control_point.h"
 #include "ftms_indoor_bike_data.h"
 #include <string.h>
@@ -9,14 +10,24 @@
 
 static NimBLEServer* s_pServer = nullptr;
 static NimBLECharacteristic* s_pCharCscMeas = nullptr;
+static NimBLECharacteristic* s_pCharCscControlPoint = nullptr;
 static NimBLECharacteristic* s_pCharFtmsData = nullptr;
 static NimBLECharacteristic* s_pCharFtmsStatus = nullptr;
 static NimBLECharacteristic* s_pCharBatteryLevel = nullptr;
 static BLEManager* s_instance = nullptr;
+static const SensorReader* s_pSensor = nullptr;
+static csc::ControlPointState s_cscControlState;
+static int32_t s_cscWheelRevOffset = 0;
+static uint32_t s_cscLastRawWheelRevs = 0;
+static bool s_cscFirstPacketLogged = false;
 static ftms::ControlPointState s_ftmsControlState;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* pServer) override {
+        s_cscControlState = {};
+        s_cscWheelRevOffset = 0;
+        s_cscLastRawWheelRevs = 0;
+        s_cscFirstPacketLogged = false;
         s_ftmsControlState = {};
         if (s_instance) {
             s_instance->setDeviceConnected(true);
@@ -24,6 +35,10 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     }
 
     void onDisconnect(NimBLEServer* pServer) override {
+        s_cscControlState = {};
+        s_cscWheelRevOffset = 0;
+        s_cscLastRawWheelRevs = 0;
+        s_cscFirstPacketLogged = false;
         s_ftmsControlState = {};
         if (s_instance) {
             s_instance->setDeviceConnected(false);
@@ -34,6 +49,45 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 };
 
 static ServerCallbacks s_serverCallbacks;
+
+class CscMeasurementCallbacks : public NimBLECharacteristicCallbacks {
+    void onSubscribe(NimBLECharacteristic* pCharacteristic,
+                     ble_gap_conn_desc* desc,
+                     uint16_t subValue) override {
+        s_cscFirstPacketLogged = false;
+        Serial.printf("[CSC] 0x2A5B notifications %s (subValue=0x%04X)\n",
+                      (subValue & 0x0001) ? "ENABLED" : "DISABLED",
+                      subValue);
+    }
+};
+
+static CscMeasurementCallbacks s_cscMeasurementCallbacks;
+
+class CscControlPointCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* pCharacteristic) override {
+        NimBLEAttValue request = pCharacteristic->getValue();
+        uint8_t response[3];
+        std::size_t responseLength = csc::buildResponse(
+            request.data(), request.size(), response, sizeof(response), s_cscControlState);
+        if (responseLength == 0) return;
+
+        Serial.printf("[CSC] Control Point opcode: 0x%02X, status: 0x%02X\n",
+                      request.data()[0], response[2]);
+
+        if (request.data()[0] == 0x01 && response[2] == csc::kSuccess) {
+            const uint32_t currentRawRevs = s_pSensor
+                ? s_pSensor->getCumulativeWheelRevs() : s_cscLastRawWheelRevs;
+            s_cscLastRawWheelRevs = currentRawRevs;
+            s_cscWheelRevOffset = static_cast<int32_t>(
+                s_cscControlState.cumulativeWheelRevolutions - currentRawRevs);
+        }
+
+        pCharacteristic->setValue(response, responseLength);
+        pCharacteristic->indicate();
+    }
+};
+
+static CscControlPointCallbacks s_cscControlPointCallbacks;
 
 static void notifyFtmsStatus(uint8_t status) {
     if (!s_pCharFtmsStatus || !s_pCharFtmsStatus->getSubscribedCount()) return;
@@ -119,6 +173,7 @@ void BLEManager::begin(const char* deviceName) {
         UUID_CHAR_CSC_MEASUREMENT,
         NIMBLE_PROPERTY::NOTIFY
     );
+    s_pCharCscMeas->setCallbacks(&s_cscMeasurementCallbacks);
 
     NimBLECharacteristic* pCharCscFeature = pCscService->createCharacteristic(
         UUID_CHAR_CSC_FEATURE,
@@ -131,8 +186,14 @@ void BLEManager::begin(const char* deviceName) {
         UUID_CHAR_SENSOR_LOCATION,
         NIMBLE_PROPERTY::READ
     );
-    uint8_t sensorLocation = 0x0C; // Rear Dropout / Indoor Trainer
+    uint8_t sensorLocation = CSC_SENSOR_LOCATION;
     pCharSensorLoc->setValue(&sensorLocation, 1);
+
+    s_pCharCscControlPoint = pCscService->createCharacteristic(
+        UUID_CHAR_CSC_CONTROL_POINT,
+        NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::INDICATE
+    );
+    s_pCharCscControlPoint->setCallbacks(&s_cscControlPointCallbacks);
 
     pCscService->start();
 #endif
@@ -216,6 +277,7 @@ void BLEManager::begin(const char* deviceName) {
     // =========================================================================
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
 #if !ERGOBIKE_FTMS_ONLY
+    pAdvertising->setAppearance(CSC_APPEARANCE);
     pAdvertising->addServiceUUID(UUID_SERVICE_CSC);
 #endif
     pAdvertising->addServiceUUID(UUID_SERVICE_FTMS);
@@ -232,6 +294,8 @@ void BLEManager::begin(const char* deviceName) {
 void BLEManager::notifyCSC(const SensorReader& sensor) {
 #ifndef NATIVE_TEST
 #if !ERGOBIKE_FTMS_ONLY
+    const uint32_t rawWheelRevs = sensor.getCumulativeWheelRevs();
+    s_cscLastRawWheelRevs = rawWheelRevs;
     if (!s_pCharCscMeas || !s_pCharCscMeas->getSubscribedCount()) return;
 
     // CSCS Measurement packet format:
@@ -243,7 +307,7 @@ void BLEManager::notifyCSC(const SensorReader& sensor) {
     uint8_t buffer[11];
     buffer[0] = 0x03;
 
-    uint32_t wheelRevs = sensor.getCumulativeWheelRevs();
+    uint32_t wheelRevs = rawWheelRevs + static_cast<uint32_t>(s_cscWheelRevOffset);
     buffer[1] = (uint8_t)(wheelRevs & 0xFF);
     buffer[2] = (uint8_t)((wheelRevs >> 8) & 0xFF);
     buffer[3] = (uint8_t)((wheelRevs >> 16) & 0xFF);
@@ -262,6 +326,14 @@ void BLEManager::notifyCSC(const SensorReader& sensor) {
     buffer[10] = (uint8_t)((crankTime >> 8) & 0xFF);
 
     s_pCharCscMeas->setValue(buffer, sizeof(buffer));
+    if (!s_cscFirstPacketLogged) {
+        Serial.printf("[CSC] 0x2A5B first notify: wheel=%lu, crank=%u, wheelTime=%u, crankTime=%u\n",
+                      (unsigned long)wheelRevs,
+                      (unsigned)crankRevs,
+                      (unsigned)wheelTime,
+                      (unsigned)crankTime);
+        s_cscFirstPacketLogged = true;
+    }
     s_pCharCscMeas->notify();
 #else
     (void)sensor;
@@ -301,6 +373,7 @@ void BLEManager::notifyBattery(uint8_t percentage) {
 
 void BLEManager::update(const SensorReader& sensor, const BatteryMonitor& battery) {
 #ifndef NATIVE_TEST
+    s_pSensor = &sensor;
     uint32_t now = millis();
 
     // Broadcast speed & cadence updates every 500ms (or on demand)

@@ -20,6 +20,7 @@ class CustomTestRunner(TestRunnerBase):
             ("test_ble_profile", ["test/test_ble_profile.cpp"], ["ERGOBIKE_FTMS_ONLY=1"]),
             ("test_ftms_control_point", ["test/test_ftms_control_point.cpp"], []),
             ("test_ftms_indoor_bike_data", ["test/test_ftms_indoor_bike_data.cpp"], []),
+            ("test_csc_control_point", ["test/test_csc_control_point.cpp"], []),
             ("test_config_defaults", ["src/storage_manager.cpp", "test/test_config_defaults.cpp"], []),
         ]
         

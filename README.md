@@ -130,19 +130,32 @@ Os modelos 3D paramétricos estão disponíveis na pasta [`hardware/3d_models/`]
 * **Parafusos recomendados:** 4x parafusos autoatarraxantes M2.5 x 8 mm para plástico.
 * **Fixação na Bike:** Encaixe para tubo de 20 mm com ranhuras para abraçadeiras de nylon (*enforca-gato*).
 
+> ⚠️ **Status de Compatibilidade Parcial & Via de Contribuição:**<br>
+> O modelo 3D atual (V9) é funcional, porém possui **compatibilidade parcial**, pois foi modelado com base em um tubo de fixação específico (~20 mm) e dimensões de componentes particulares. Dependendo do diâmetro do tubo da sua ergométrica, do tipo de conector P2/P1 ou do holder de bateria utilizado, podem ser necessários ajustes.<br>
+> **Melhorias e variantes 3D são uma das principais vias de contribuição para este projeto!** Se você desenvolver novos suportes, cases para outros diâmetros de quadro, presilhas ou modelos em STEP/OpenSCAD, envie seu Pull Request!
+
 ---
 
 ## 🚀 Compilação e Gravação
 
-### Usando PlatformIO (VS Code)
+### Ambientes Disponíveis (PlatformIO)
+* **`esp32-c3` (Padrão de Produção):** Perfil Dual completo com **CSCS** (`0x1816` + `0x2A55`), **FTMS** (`0x1826` com potência estimada, Status e Control Point) e **Battery Service** (`0x180F`).
+* **`esp32-c3-ftms-only`:** Perfil isolado FTMS para diagnósticos específicos em simuladores que exigem exclusivamente FTMS.
+
+### Usando PlatformIO (Linha de Comando ou VS Code)
 1. Clone este repositório:
    ```bash
    git clone https://github.com/lorenzo-br/ergobike-ble.git
    cd ergobike-ble
    ```
-2. Abra a pasta no **VS Code** com a extensão **PlatformIO**.
-3. Conecte o ESP32-C3 na porta USB.
-4. Clique no botão de **Upload** na barra inferior do PlatformIO (ou execute `pio run -t upload`).
+2. Compile e grave o ambiente padrão:
+   ```bash
+   pio run -e esp32-c3 -t upload
+   ```
+3. (Opcional) Execute todos os testes unitários nativos de mesa:
+   ```bash
+   pio test -e native
+   ```
 
 ### Usando Arduino IDE
 1. Adicione a URL do ESP32 em *Arquivo > Preferências*:
@@ -203,7 +216,10 @@ ergobike_ble/
 │   ├── config.h             # Pinos, parâmetros e UUIDs dos serviços BLE
 │   ├── sensor_reader.h      # Processamento de pulso, debounce e métricas
 │   ├── ble_manager.h        # Servidor BLE (CSCS, FTMS, Battery Service)
-│   ├── storage_manager.h    # Persistência de parâmetros em Flash NVS
+│   ├── csc_control_point.h  # Protocolo e respostas do CSC Control Point (0x2A55)
+│   ├── ftms_control_point.h # Protocolo e respostas do FTMS Control Point (0x2AD9)
+│   ├── ftms_indoor_bike_data.h # Empacotamento FTMS e estimador de potência
+│   ├── storage_manager.h    # Persistência de parâmetros e migração Flash NVS
 │   ├── battery_monitor.h    # Leitura de ADC e curva percentual da 18650
 │   ├── power_manager.h      # Inatividade e controle de Deep Sleep
 │   ├── web_assets.h         # Single-Page Web App embarcada
@@ -216,16 +232,37 @@ ergobike_ble/
 │   ├── battery_monitor.cpp
 │   ├── power_manager.cpp
 │   └── web_portal.cpp
-├── test/
-│   ├── test_sensor_math.cpp  # Testes unitários do algoritmo do sensor
-│   └── test_battery_math.cpp # Testes unitários da curva da 18650
-├── platformio.ini           # Configuração de build do PlatformIO
+├── test/                    # Suíte completa de testes unitários nativos (7 casos)
+│   ├── test_sensor_math.cpp
+│   ├── test_battery_math.cpp
+│   ├── test_ble_profile.cpp
+│   ├── test_ftms_control_point.cpp
+│   ├── test_ftms_indoor_bike_data.cpp
+│   ├── test_csc_control_point.cpp
+│   └── test_config_defaults.cpp
+├── platformio.ini           # Ambientes esp32-c3, esp32-c3-ftms-only e native
 ├── min_spiffs.csv           # Tabela de partições (Flash OTA 4MB)
+├── LICENSE                  # Licença MIT
 └── README.md
 ```
 
 ---
 
+## 🤝 Como Contribuir
+
+Contribuições de toda a comunidade ciclista e maker são muito bem-vindas! Algumas formas diretas de colaborar:
+
+1. **Modelagem 3D & Adaptações Mecânicas:**
+   - Criar variantes do case para diferentes diâmetros de quadro de bicicleta (22 mm, 25 mm, tubos ovais, etc.).
+   - Desenvolver suportes alternativos para outros tipos de baterias (14500, LiPo plana, holders com trava).
+   - Disponibilizar arquivos em formatos universais (`STEP`, `F3D`, `FreeCAD`).
+2. **Compatibilidade com Novos Aplicativos:**
+   - Testar o sensor em outros apps de ciclismo indoor (GoldenCheetah, TrainerRoad, FulGaz, etc.) e reportar feedback nas *Issues*.
+3. **Firmware & Recursos:**
+   - Abrir *Pull Requests* com testes unitários adicionais, otimizações de consumo de energia ou refinamentos na estimativa de potência.
+
+---
+
 ## 📄 Licença
 
-Este projeto é disponibilizado sob a licença **MIT**. Sinta-se livre para usar, modificar e compartilhar.
+Este projeto é disponibilizado sob a licença **MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes. Sinta-se livre para usar, modificar e compartilhar.

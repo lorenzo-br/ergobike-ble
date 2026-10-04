@@ -14,7 +14,7 @@
 
 ---
 
-Transforme sua bicicleta ergométrica convencional com medidor de pulso simples (cabo P1/P2) em um **Smart Indoor Trainer Bluetooth** completo e de alta precisão, compatível nativamente com o **CycleGo**, **Zwift**, **Rouvy**, **Kinomap**, **Strava**, **Wahoo** e outros aplicativos de treino indoor.
+Transforme sua bicicleta ergométrica convencional com medidor de pulso simples (cabo P1/P2) em um **Smart Indoor Trainer Bluetooth** completo e de alta precisão, compatível nativamente com o **CycleGo**, **Zwift**, **MyWhoosh**, **Kinomap**, **Wahoo Fitness**, **Rouvy**, **Strava** e outros aplicativos de treino indoor.
 
 Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, com consumo ultra-baixo em repouso (**Deep Sleep < 15 µA**), despertar automático ao primeiro giro do pedal e um **Portal Wi-Fi de Auto-Calibração** sem necessidade de abrir a carenagem da bike.
 
@@ -23,8 +23,8 @@ Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, co
 ## 🌟 Principais Recursos
 
 - **Dual-Stack BLE Oficial (CSCS + FTMS + BAS):**
-  - **CSCS (Cycling Speed and Cadence Service - `0x1816`):** Padrão universal para cadência e velocidade com base de tempo de 1/1024s.
-  - **FTMS (Fitness Machine Service - `0x1826`):** Padrão moderno com dados de *Indoor Bike Data*.
+  - **CSCS (Cycling Speed and Cadence Service - `0x1816`):** Padrão universal para cadência e velocidade com base de tempo de 1/1024s, SC Control Point (`0x2A55`) e localização do sensor.
+  - **FTMS (Fitness Machine Service - `0x1826`):** Padrão moderno de *Indoor Bike Data* (`0x2AD2`) com velocidade, cadência, potência estimada (Watts), Status (`0x2ADA`) e Control Point (`0x2AD9`).
   - **Battery Service (`0x180F`):** Monitoramento contínuo da porcentagem da célula 18650 diretamente no app.
 - **Assistente de Auto-Calibração (10 Voltas no Pedal):**
   - Calibração guiada via navegador: dê 10 voltas no pedal e o sistema calcula a relação de polia da roda de inércia automaticamente.
@@ -44,11 +44,12 @@ Desenvolvido para **ESP32-C3** (RISC-V) alimentado por uma bateria **18650**, co
 | Aplicativo | Protocolo BLE Utilizado | Métricas Suportadas |
 | :--- | :--- | :--- |
 | **CycleGo** | CSCS / FTMS | Cadência (RPM) e Velocidade (km/h) |
-| **Zwift** | CSCS / FTMS | Cadência, Velocidade e Bateria |
-| **Rouvy** | CSCS | Cadência e Velocidade Virtual |
-| **Kinomap** | FTMS / CSCS | Cadência e Velocidade |
-| **Strava** (Gravação) | CSCS | Cadência e Velocidade do Treino |
+| **Zwift** | FTMS / CSCS | Cadência, Velocidade, Potência Estimada e Bateria |
+| **MyWhoosh** | FTMS / CSCS | Cadência, Velocidade e Potência Estimada |
+| **Kinomap** | FTMS / CSCS | Cadência, Velocidade e Potência Estimada |
 | **Wahoo Fitness** | CSCS | Cadência, Velocidade e Bateria |
+| **Rouvy** | CSCS | Cadência e Velocidade Virtual |
+| **Strava** (Gravação) | CSCS | Cadência e Velocidade do Treino |
 | **nRF Connect** | CSCS + FTMS + BAS + DIS | Diagnóstico completo de GATT |
 
 ---
